@@ -19,6 +19,10 @@
 "C:\cc65\bin\ld65" -o Morgan.nes -C main.cfg -m Morgan.map.txt -Ln Morgan.labels.txt --dbgfile Morgan.nes.dbg main.o
 @IF ERRORLEVEL 1 GOTO failure
 @echo.
+@echo Generating FCEUX debug symbols
+@echo ====================
+python "Scripts/generate_fceux_symbols.py"
+@echo.
 @echo Build succeeded!
 @pause
 @GOTO endbuild
