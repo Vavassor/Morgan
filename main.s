@@ -1,45 +1,10 @@
+; main.s
 ;
-; example.s
-; Brad Smith (rainwarrior), 4/06/2014
-; http://rainwarrior.ca
+; Andrew Dawson <dawso.andrew@gmail.com>
 ;
-; This is intended as an introductory example to NES programming with ca65.
-; It covers the basic use of background, sprites, and the controller.
-; This does not demonstrate how to use sound.
-;
-; This is not intended as a ready-made game. It is only a very minimal
-; playground to assist getting started in NES programming. The idea here is
-; to get you past the most difficult parts of a minimal NES program setup
-; so that you can experiment from an almost blank slate.
-;
-; To use your own graphics, replace the two 4k tile banks provided.
-; They are named "background.chr" and "sprite.chr".
-;
-; The reset and nmi routines are provided as a simple working example of
-; these things. Writing these from scratch is a more advanced topic, so they
-; will not be fully explained here.
-;
-; Under "drawing utilities" are some very primitive routines for working
-; with the NES graphics. See the "main" section for examples of how to use them.
-;
-; Finally at the bottom you will find the "main" section that provides
-; a small example program. A cursor is shown. Pressing the d-pad will move
-;   - pressing the d-pad will move the cursor around the screen
-;   - pressing B will draw a tile to the screen
-;   - pressing A will draw several tiles to the screen
-;   - pressing SELECT will reset the background
-;   - holding START will demonstrate scrolling
-;
-; Please note that this example code is intended to be simple, not necessarily
-; efficient. I have tried to avoid optimization in favour of easier to understand code.
-;
-; You may notice some odd behaviour when using the A button around the edges of the screen.
-; I will leave it as an exercise for the curious to understand what is going on.
-;
+; This is the main file for the 
 
-;
-; iNES header
-;
+; iNES header...................................................................
 
 .segment "HEADER"
 
@@ -54,44 +19,52 @@ INES_SRAM   = 0 ; 1 = battery backed SRAM at $6000-7FFF
 .byte (INES_MAPPER & %11110000)
 .byte $0, $0, $0, $0, $0, $0, $0, $0 ; padding
 
-;
-; CHR ROM
-;
+; CHR ROM.......................................................................
 
 .segment "TILES"
 .incbin "background.chr"
 .incbin "sprite.chr"
 
-;
-; vectors placed at top 6 bytes of memory area
-;
+; vectors placed at top 6 bytes of memory area..................................
 
 .segment "VECTORS"
 .word nmi
 .word reset
 .word irq
 
-;
-; reset routine
-;
+; reset routine.................................................................
+
+PPU_CONTROL1    = $2000
+PPU_CONTROL2    = $2001
+PPU_STATUS      = $2002
+SPR_RAM_ADDRESS = $2003
+SPR_RAM_IO      = $2004
+VRAM_ADDRESS1   = $2005
+VRAM_ADDRESS2   = $2006
+VRAM_IO         = $2007
+
+APU_DMC_CONTROL   = $4010
+SPRITE_DMA        = $4014
+APU_CONTROL       = $4015
+APU_FRAME_COUNTER = $4017
 
 .segment "CODE"
 reset:
 	sei       ; mask interrupts
 	lda #0
-	sta $2000 ; disable NMI
-	sta $2001 ; disable rendering
-	sta $4015 ; disable APU sound
-	sta $4010 ; disable DMC IRQ
+	sta PPU_CONTROL1 ; disable NMI
+	sta PPU_CONTROL2 ; disable rendering
+	sta APU_CONTROL ; disable APU sound
+	sta APU_DMC_CONTROL ; disable DMC IRQ
 	lda #$40
-	sta $4017 ; disable APU IRQ
+	sta APU_FRAME_COUNTER ; disable APU IRQ
 	cld       ; disable decimal mode
 	ldx #$FF
 	txs       ; initialize stack
 	; wait for first vblank
-	bit $2002
+	bit PPU_STATUS
 	:
-		bit $2002
+		bit PPU_STATUS
 		bpl :-
 	; clear all RAM to 0
 	lda #0
@@ -119,17 +92,15 @@ reset:
 		bne :-
 	; wait for second vblank
 	:
-		bit $2002
+		bit PPU_STATUS
 		bpl :-
 	; NES is initialized, ready to begin!
 	; enable the NMI for graphical updates, and jump to our main program
 	lda #%10001000
-	sta $2000
+	sta PPU_CONTROL1
 	jmp main
 
-;
-; nmi routine
-;
+; NMI routine...................................................................
 
 .segment "ZEROPAGE"
 nmi_lock:       .res 1 ; prevents NMI re-entry
@@ -173,27 +144,27 @@ nmi:
 	cmp #2 ; nmi_ready == 2 turns rendering off
 	bne :+
 		lda #%00000000
-		sta $2001
+		sta PPU_CONTROL2
 		ldx #0
 		stx nmi_ready
 		jmp @ppu_update_end
 	:
 	; sprite OAM DMA
 	ldx #0
-	stx $2003
+	stx SPR_RAM_ADDRESS
 	lda #>oam
-	sta $4014
+	sta SPRITE_DMA
 	; palettes
 	lda #%10001000
-	sta $2000 ; set horizontal nametable increment
-	lda $2002
+	sta PPU_CONTROL1 ; set horizontal nametable increment
+	lda PPU_STATUS
 	lda #$3F
-	sta $2006
-	stx $2006 ; set PPU address to $3F00
+	sta VRAM_ADDRESS2
+	stx VRAM_ADDRESS2 ; set PPU address to $3F00
 	ldx #0
 	:
 		lda palette, X
-		sta $2007
+		sta VRAM_IO
 		inx
 		cpx #32
 		bcc :-
@@ -203,13 +174,13 @@ nmi:
 	bcs @scroll
 	@nmt_update_loop:
 		lda nmt_update, X
-		sta $2006
+		sta VRAM_ADDRESS2
 		inx
 		lda nmt_update, X
-		sta $2006
+		sta VRAM_ADDRESS2
 		inx
 		lda nmt_update, X
-		sta $2007
+		sta VRAM_IO
 		inx
 		cpx nmt_update_len
 		bcc @nmt_update_loop
@@ -219,14 +190,14 @@ nmi:
 	lda scroll_nmt
 	and #%00000011 ; keep only lowest 2 bits to prevent error
 	ora #%10001000
-	sta $2000
+	sta PPU_CONTROL1
 	lda scroll_x
-	sta $2005
+	sta VRAM_ADDRESS1
 	lda scroll_y
-	sta $2005
+	sta VRAM_ADDRESS1
 	; enable rendering
 	lda #%00011110
-	sta $2001
+	sta PPU_CONTROL2
 	; flag PPU update complete
 	ldx #0
 	stx nmi_ready
@@ -244,17 +215,13 @@ nmi:
 	pla
 	rti
 
-;
-; irq
-;
+; IRQ...........................................................................
 
 .segment "CODE"
 irq:
 	rti
 
-;
-; drawing utilities
-;
+; Drawing utilities.............................................................
 
 .segment "CODE"
 
@@ -290,13 +257,13 @@ ppu_off:
 ;   Y = 64- 95 nametable $2800
 ;   Y = 96-127 nametable $2C00
 ppu_address_tile:
-	lda $2002 ; reset latch
+	lda PPU_STATUS ; reset latch
 	tya
 	lsr
 	lsr
 	lsr
 	ora #$20 ; high bits of Y + $20
-	sta $2006
+	sta VRAM_ADDRESS2
 	tya
 	asl
 	asl
@@ -306,7 +273,7 @@ ppu_address_tile:
 	sta temp
 	txa
 	ora temp
-	sta $2006 ; low bits of Y + X
+	sta VRAM_ADDRESS2 ; low bits of Y + X
 	rts
 
 ; ppu_update_tile: can be used with rendering on, sets the tile at X/Y to tile A next time you call ppu_update
@@ -358,9 +325,7 @@ ppu_update_byte:
 	sty nmt_update_len
 	rts
 
-;
-; gamepad
-;
+; Gamepad.......................................................................
 
 PAD_A      = $01
 PAD_B      = $02
@@ -370,6 +335,8 @@ PAD_U      = $10
 PAD_D      = $20
 PAD_L      = $40
 PAD_R      = $80
+
+PAD1_STATE = $4016
 
 .segment "ZEROPAGE"
 gamepad: .res 1
@@ -381,14 +348,14 @@ gamepad: .res 1
 gamepad_poll:
 	; strobe the gamepad to latch current button state
 	lda #1
-	sta $4016
+	sta PAD1_STATE
 	lda #0
-	sta $4016
+	sta PAD1_STATE
 	; read 8 bytes from the interface at $4016
 	ldx #8
 	:
 		pha
-		lda $4016
+		lda PAD1_STATE
 		; combine low two bits and store in carry bit
 		and #%00000011
 		cmp #%00000001
@@ -400,9 +367,7 @@ gamepad_poll:
 	sta gamepad
 	rts
 
-;
-; main
-;
+; Main..........................................................................
 
 .segment "RODATA"
 example_palette:
@@ -702,18 +667,18 @@ draw_cursor:
 
 setup_background:
 	; first nametable, start by clearing to empty
-	lda $2002 ; reset latch
+	lda PPU_STATUS ; reset latch
 	lda #$20
-	sta $2006
+	sta VRAM_ADDRESS2
 	lda #$00
-	sta $2006
+	sta VRAM_ADDRESS2
 	; empty nametable
 	lda #0
 	ldy #30 ; 30 rows
 	:
 		ldx #32 ; 32 columns
 		:
-			sta $2007
+			sta VRAM_IO
 			dex
 			bne :-
 		dey
@@ -721,7 +686,7 @@ setup_background:
 	; set all attributes to 0
 	ldx #64 ; 64 bytes
 	:
-		sta $2007
+		sta VRAM_IO
 		dex
 		bne :-
 	; fill in an area in the middle with 1/2 checkerboard
@@ -735,7 +700,7 @@ setup_background:
 		; write a line of checkerboard
 		ldx #8
 		:
-			sta $2007
+			sta VRAM_IO
 			eor #$3
 			inx
 			cpx #(32-8)
@@ -746,15 +711,15 @@ setup_background:
 		bcc :--
 	; second nametable, fill with simple pattern
 	lda #$24
-	sta $2006
+	sta VRAM_ADDRESS2
 	lda #$00
-	sta $2006
+	sta VRAM_ADDRESS2
 	lda #$00
 	ldy #30
 	:
 		ldx #32
 		:
-			sta $2007
+			sta VRAM_IO
 			clc
 			adc #1
 			and #3
@@ -771,7 +736,7 @@ setup_background:
 	:
 		ldx #16
 		:
-			sta $2007
+			sta VRAM_IO
 			dex
 			bne :-
 		clc
@@ -779,7 +744,3 @@ setup_background:
 		dey
 		bne :--
 	rts
-
-;
-; end of file
-;
