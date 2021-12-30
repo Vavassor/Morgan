@@ -1,0 +1,96 @@
+; I/O registers.................................................................
+
+.ifndef NES_INC
+.define NES_INC
+
+PPU_CONTROL1    = $2000
+PPU_CONTROL2    = $2001
+PPU_STATUS      = $2002
+SPR_RAM_ADDRESS = $2003
+SPR_RAM_IO      = $2004
+VRAM_ADDRESS1   = $2005
+VRAM_ADDRESS2   = $2006
+VRAM_IO         = $2007
+
+; PPU_CONTROL1 bits
+NAMETABLE_2400  = $01
+NAMETABLE_2800  = $02
+NAMETABLE_2C00  = $03
+VRAM_ORDER_DOWN = $04
+SPR_1000        = $08
+BG_1000         = $10
+SPR_8X16        = $20
+NMI_ENABLE      = $80
+
+; PPU_CONTROL2 bits
+DISPLAY_GREYSCALE = $01
+BG_SHOW_LEFT8     = $02
+SPR_SHOW_LEFT8    = $04
+BG_ENABLE         = $08
+SPR_ENABLE        = $10
+EMPHASIZE_R       = $20
+EMPHASIZE_G       = $40
+EMPHASIZE_B       = $80
+
+; PPU_STATUS bits
+SPR_ZERO_HIT = $04
+IS_VBLANK    = $08
+
+APU_PULSE1_CONTROL   = $4000
+APU_PULSE1_RAMP      = $4001
+APU_PULSE1_FINE      = $4002
+APU_PULSE1_COARSE    = $4003
+APU_PULSE2_CONTROL   = $4004
+APU_PULSE2_RAMP      = $4005
+APU_PULSE2_FINE      = $4006
+APU_PULSE2_COARSE    = $4007
+APU_TRI_CONTROL1     = $4008
+APU_TRI_CONTROL2     = $4009
+APU_TRI_FREQUENCY1   = $400A
+APU_TRI_FREQUENCY2   = $400B
+APU_NOISE_CONTROL    = $400C
+; Unused register      $400D
+APU_NOISE_FREQUENCY1 = $400E
+APU_NOISE_FREQUENCY2 = $400F
+APU_DMC_CONTROL      = $4010
+APU_DMC_DA           = $4011
+APU_DMC_ADDRESS      = $4012
+APU_DMC_LENGTH       = $4013
+SPRITE_DMA           = $4014
+APU_STATUS           = $4015 ; Used when reading from $4015.
+APU_CONTROL          = $4015 ; Used when writing to $4015.
+PAD1_STATE           = $4016
+PAD2_STATE           = $4017 ; Used when reading from $4017.
+APU_FRAME_COUNTER    = $4017 ; Used when writing to $4017.
+
+; APU_CONTROL bits
+PULSE1_ENABLE = $01
+PULSE2_ENABLE = $02
+TRI_ENABLE    = $04
+NOISE_ENABLE  = $08
+DMC_ENABLE    = $10
+
+; APU_STATUS bits
+PULSE1_ACTIVE   = $01
+PULSE2_ACTIVE   = $02
+TRI_ACTIVE      = $04
+NOISE_ACTIVE    = $08
+DMC_ACTIVE      = $10
+FRAME_INTERRUPT = $40
+DMC_INTERRUPT   = $80
+
+; PAD1_STATE/PAD2_STATE bits
+PAD_A      = $01
+PAD_B      = $02
+PAD_SELECT = $04
+PAD_START  = $08
+PAD_U      = $10
+PAD_D      = $20
+PAD_L      = $40
+PAD_R      = $80
+
+; APU_FRAME_COUNTER bits
+IRQ_INHIBIT     = $40
+SEQUENCER_5STEP = $80
+
+.endif ; .define NES_INC

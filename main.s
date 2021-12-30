@@ -64,19 +64,7 @@ FAMISTUDIO_DPCM_OFF           = $e000
 
 ; reset routine.................................................................
 
-PPU_CONTROL1    = $2000
-PPU_CONTROL2    = $2001
-PPU_STATUS      = $2002
-SPR_RAM_ADDRESS = $2003
-SPR_RAM_IO      = $2004
-VRAM_ADDRESS1   = $2005
-VRAM_ADDRESS2   = $2006
-VRAM_IO         = $2007
-
-APU_DMC_CONTROL   = $4010
-SPRITE_DMA        = $4014
-APU_CONTROL       = $4015
-APU_FRAME_COUNTER = $4017
+.include "nes.inc"
 
 .segment "CODE"
 reset:
@@ -125,8 +113,8 @@ reset:
 		bit PPU_STATUS
 		bpl :-
 	; NES is initialized, ready to begin!
-	; enable the NMI for graphical updates, and jump to our main program
-	lda #%10001000
+	; set up PPU and jump to our main program
+	lda #(SPR_1000 | NMI_ENABLE)
 	sta PPU_CONTROL1
 	jmp main
 
@@ -185,7 +173,7 @@ nmi:
 	lda #>oam
 	sta SPRITE_DMA
 	; palettes
-	lda #%10001000
+	lda #(SPR_1000 | NMI_ENABLE)
 	sta PPU_CONTROL1 ; set horizontal nametable increment
 	lda PPU_STATUS
 	lda #$3F
@@ -219,14 +207,14 @@ nmi:
 @scroll:
 	lda scroll_nmt
 	and #%00000011 ; keep only lowest 2 bits to prevent error
-	ora #%10001000
+	ora #(SPR_1000 | NMI_ENABLE)
 	sta PPU_CONTROL1
 	lda scroll_x
 	sta VRAM_ADDRESS1
 	lda scroll_y
 	sta VRAM_ADDRESS1
 	; enable rendering
-	lda #%00011110
+	lda #(BG_ENABLE | SPR_ENABLE | BG_SHOW_LEFT8 | SPR_SHOW_LEFT8)
 	sta PPU_CONTROL2
 	; flag PPU update complete
 	ldx #0
@@ -356,17 +344,6 @@ ppu_update_byte:
 	rts
 
 ; Gamepad.......................................................................
-
-PAD_A      = $01
-PAD_B      = $02
-PAD_SELECT = $04
-PAD_START  = $08
-PAD_U      = $10
-PAD_D      = $20
-PAD_L      = $40
-PAD_R      = $80
-
-PAD1_STATE = $4016
 
 .segment "ZEROPAGE"
 gamepad: .res 1
