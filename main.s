@@ -2,7 +2,7 @@
 ;
 ; Andrew Dawson <dawso.andrew@gmail.com>
 ;
-; This is the main file for the 
+; This is the main file for the game.
 
 ; iNES header...................................................................
 
@@ -25,12 +25,42 @@ INES_SRAM   = 0 ; 1 = battery backed SRAM at $6000-7FFF
 .incbin "background.chr"
 .incbin "sprite.chr"
 
+; Music.........................................................................
+
+.segment "RODATA"
+
+song_silver_surfer:
+.include "song_silver_surfer_ca65.s"
+
 ; vectors placed at top 6 bytes of memory area..................................
 
 .segment "VECTORS"
 .word nmi
 .word reset
 .word irq
+
+; Famistudio....................................................................
+
+.segment "CODE"
+
+FAMISTUDIO_CFG_EXTERNAL       = 1
+FAMISTUDIO_CFG_DPCM_SUPPORT   = 1
+FAMISTUDIO_CFG_SFX_SUPPORT    = 1 
+FAMISTUDIO_CFG_SFX_STREAMS    = 2
+FAMISTUDIO_CFG_EQUALIZER      = 1
+FAMISTUDIO_USE_VOLUME_TRACK   = 1
+FAMISTUDIO_USE_PITCH_TRACK    = 1
+FAMISTUDIO_USE_SLIDE_NOTES    = 1
+FAMISTUDIO_USE_VIBRATO        = 1
+FAMISTUDIO_USE_ARPEGGIO       = 1
+FAMISTUDIO_CFG_SMOOTH_VIBRATO = 1
+FAMISTUDIO_DPCM_OFF           = $e000
+
+.define FAMISTUDIO_CA65_ZP_SEGMENT   ZEROPAGE
+.define FAMISTUDIO_CA65_RAM_SEGMENT  BSS
+.define FAMISTUDIO_CA65_CODE_SEGMENT CODE
+
+.include "famistudio_ca65.s"
 
 ; reset routine.................................................................
 
@@ -202,7 +232,7 @@ nmi:
 	ldx #0
 	stx nmi_ready
 @ppu_update_end:
-	; if this engine had music/sound, this would be a good place to play it
+	jsr famistudio_update
 	; unlock re-entry flag
 	lda #0
 	sta nmi_lock
@@ -405,6 +435,13 @@ main:
 	; show the screen
 	jsr draw_cursor
 	jsr ppu_update
+	; play a song
+	lda #1 ; NTSC
+	ldx #.lobyte(music_data_silver_surfer_c_stephen_ruddy)
+    ldy #.hibyte(music_data_silver_surfer_c_stephen_ruddy)
+    jsr famistudio_init
+    lda #0 ; song index
+    jsr famistudio_music_play
 	; main loop
 @loop:
 	; read gamepad
